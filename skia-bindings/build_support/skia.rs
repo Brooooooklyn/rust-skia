@@ -167,8 +167,6 @@ impl FinalBuildConfiguration {
                 ("skia_use_system_zlib", no()),
                 ("skia_use_xps", no()),
                 ("skia_use_dng_sdk", if features.dng { yes() } else { no() }),
-                ("cc", quote("clang")),
-                ("cxx", quote("clang++")),
             ];
 
             if features.vulkan {
@@ -214,6 +212,7 @@ impl FinalBuildConfiguration {
 
             let mut flags: Vec<&str> = vec![];
             let mut use_expat = true;
+            let mut compiler_executables = ("clang", "clang++");
 
             // target specific gn args.
             let target = cargo::target();
@@ -259,6 +258,10 @@ impl FinalBuildConfiguration {
                     args.push(("target_os", quote("ios")));
                     args.push(("target_cpu", quote(clang::target_arch(arch))));
                 }
+                ("wasm32", "unknown", "emscripten", _) => {
+                    args.push(("target_cpu", quote("wasm")));
+                    compiler_executables = ("emcc", "em++");
+                }
                 _ => {}
             }
 
@@ -267,6 +270,11 @@ impl FinalBuildConfiguration {
                 args.push(("skia_use_system_expat", no()));
             } else {
                 args.push(("skia_use_expat", no()));
+            }
+
+            {
+                args.push(("cc", quote(compiler_executables.0)));
+                args.push(("cxx", quote(compiler_executables.1)));
             }
 
             if !flags.is_empty() {
@@ -412,6 +420,9 @@ impl BinariesConfiguration {
             }
             (_, "apple", "ios", _) => {
                 link_libraries.extend(ios::link_libraries(features));
+            }
+            ("wasm32", "unknown", "emscripten", _) => {
+                link_libraries.extend(vec!["stdc++", "bz2", "GL", "fontconfig", "freetype"]);
             }
             _ => panic!("unsupported target: {:?}", cargo::target()),
         };
@@ -739,6 +750,14 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
             for arg in ios::additional_clang_args(arch) {
                 builder = builder.clang_arg(arg);
             }
+        }
+        ("wasm32", "unknown", "emscripten", _) => {
+            builder = builder.clang_arg("--target=wasm32-unknown-emscripten");
+            // Add C++ includes (otherwise build will fail with <cmath> not found)
+            builder = builder.clang_arg("-I/usr/share/emscripten/system/include/libcxx");
+            // visibility=default, otherwise some types may be missing:
+            // https://github.com/rust-lang/rust-bindgen/issues/751#issuecomment-555735577
+            builder = builder.clang_arg("-fvisibility=default");
         }
         _ => {}
     }

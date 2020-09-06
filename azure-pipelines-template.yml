@@ -148,6 +148,14 @@ jobs:
         echo "##vso[task.setvariable variable=PATH;]${PATH}:${HOME}/android-ndk-$(androidNDK)/toolchains/llvm/prebuilt/$(androidHost)/bin"
       displayName: 'Install Android NDK $(androidNDK)'
 
+  - ${{ if eq(parameters.platform, 'macOS') }}:
+      # macOS
+      - bash: |
+          set -e
+          brew unlink node@6
+          brew install emscripten --force
+        displayName: Install Emscripten
+
   # Note: support to ignore specific rust files and directories is unstable yet: https://github.com/rust-lang/rustfmt/pull/2522
   - bash: |
       set -e
@@ -169,6 +177,11 @@ jobs:
         features: '$(features),d3d'
 
   - ${{ if eq(parameters.platform, 'macOS') }}:
+    - template: 'azure-pipelines-build-target.yml'
+      parameters:
+        target: 'wasm32-unknown-emscripten'
+        releaseBinaries: true
+
     - template: 'azure-pipelines-build-target.yml'
       parameters:
         target: 'aarch64-linux-android'
