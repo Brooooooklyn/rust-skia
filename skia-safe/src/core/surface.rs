@@ -108,13 +108,23 @@ impl RCHandle<SkSurface> {
         })
     }
 
-    pub fn from_backend_render_target(
-        context: &mut gpu::Context,
-        backend_render_target: &gpu::BackendRenderTarget,
+    /// Create a new surface from a render target (see the documentation for `BackendRenderTarget`
+    /// for more details). Usually, this is the framebuffer. You can set the destination color
+    /// space, which affects how images are rendered, how gradients are calculated, how alpha
+    /// blending and anti-aliasing work, etc. If in doubt, use `ColorSpace::new_srgb()`. Specifying
+    /// `None` defaults to legacy behaviour, which is not color-correct.
+    ///
+    /// The `ColorType` _must_ match the `Format` specifed in the `FramebufferInfo` that was used to
+    /// create the `BackendRenderTarget`. `ColorType` is backend-agnostic, but the `Format` is
+    /// specific to each backend, and right now there is no automatic conversion. Therefore, this
+    /// needs to be handled manually. If these values do not match, `None` is returned.
+    pub fn from_backend_render_target<'a>(
+        context: &'a mut gpu::Context,
+        backend_render_target: &'a gpu::BackendRenderTarget,
         origin: gpu::SurfaceOrigin,
         color_type: crate::ColorType,
         color_space: impl Into<Option<crate::ColorSpace>>,
-        surface_props: Option<&SurfaceProps>,
+        surface_props: impl Into<Option<&'a SurfaceProps>>,
     ) -> Option<Self> {
         Self::from_ptr(unsafe {
             sb::C_SkSurface_MakeFromBackendRenderTarget(
@@ -123,7 +133,7 @@ impl RCHandle<SkSurface> {
                 origin,
                 color_type.into_native(),
                 color_space.into().into_ptr_or_null(),
-                surface_props.native_ptr_or_null(),
+                surface_props.into().native_ptr_or_null(),
             )
         })
     }
