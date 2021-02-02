@@ -16,7 +16,6 @@ inline sk_sp<T> sp(T* pt) {
 }
 
 // Used in textlayout::Paragraph::findTypefaces()
-
 struct SkStrings {
     std::vector<SkString> strings;
 };

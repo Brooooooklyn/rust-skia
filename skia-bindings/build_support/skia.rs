@@ -2,7 +2,6 @@
 
 use crate::build_support::{android, binaries, cargo, clang, ios, llvm, vs, xcode};
 use bindgen::{CodegenConfig, EnumVariation};
-use cc::Build;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, fs};
@@ -10,7 +9,6 @@ use std::{env, fs};
 /// The libraries to link with.
 mod lib {
     pub const SKIA: &str = "skia";
-    pub const SKIA_BINDINGS: &str = "skia-bindings";
     pub const SK_SHAPER: &str = "skshaper";
     pub const SK_PARAGRAPH: &str = "skparagraph";
 }
@@ -219,6 +217,7 @@ impl FinalBuildConfiguration {
                 ("skia_use_system_zlib", no()),
                 ("skia_use_xps", no()),
                 ("skia_use_dng_sdk", yes_if(features.dng)),
+                ("skia_enable_rust_bindings", yes()),
                 ("cc", quote(&build.cc)),
                 ("cxx", quote(&build.cxx)),
             ];
@@ -541,7 +540,6 @@ impl BinariesConfiguration {
             .into();
 
         built_libraries.push(lib::SKIA.into());
-        built_libraries.push(lib::SKIA_BINDINGS.into());
 
         BinariesConfiguration {
             feature_ids: feature_ids.into_iter().map(|f| f.to_string()).collect(),
@@ -588,7 +586,7 @@ impl BinariesConfiguration {
     }
 }
 
-/// The full build of Skia, skia-bindings, and the generation of bindings.rs.
+/// The full build of Skia, and the generation of bindings.rs.
 pub fn build(build: &FinalBuildConfiguration, config: &BinariesConfiguration) {
     let python2 = &prerequisites::locate_python2_cmd();
     println!("Python 2 found: {:?}", python2);
@@ -785,10 +783,7 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
         builder = builder.blacklist_type(t);
     }
 
-    let mut cc_build = Build::new();
-
     for source in &build.binding_sources {
-        cc_build.file(source);
         let source = source.to_str().unwrap();
         cargo::rerun_if_changed(source);
         builder = builder.header(source);
@@ -798,7 +793,6 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
     cargo::rerun_if_changed(include_path.join("include"));
 
     builder = builder.clang_arg(format!("-I{}", include_path.display()));
-    cc_build.include(include_path);
 
     let definitions = {
         let mut definitions = Vec::new();
@@ -821,26 +815,17 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
     for (name, value) in &definitions {
         match value {
             Some(value) => {
-                cc_build.define(name, value.as_str());
                 builder = builder.clang_arg(format!("-D{}={}", name, value));
             }
             None => {
-                cc_build.define(name, "");
                 builder = builder.clang_arg(format!("-D{}", name));
             }
         }
     }
 
-    cc_build.cpp(true).out_dir(output_directory);
-
-    if !cfg!(windows) {
-        cc_build.flag("-std=c++17");
-    }
-
     let target = cargo::target();
 
     let target_str = &target.to_string();
-    cc_build.target(target_str);
 
     let sdk;
     let sysroot = cargo::env_var("SDKROOT");
@@ -886,13 +871,7 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
     if let Some(sysroot) = sysroot {
         let sysroot = format!("{}{}", sysroot_flag, sysroot);
         builder = builder.clang_arg(&sysroot);
-        cc_build.flag(&sysroot);
     }
-
-    println!("COMPILING BINDINGS: {:?}", build.binding_sources);
-    // we add skia-bindings later on.
-    cc_build.cargo_metadata(false);
-    cc_build.compile(lib::SKIA_BINDINGS);
 
     println!("GENERATING BINDINGS");
     let bindings = builder.generate().expect("Unable to generate bindings");

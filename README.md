@@ -4,8 +4,8 @@
 
 Skia Submodule Status: chrome/m88 ([upstream changes][skia-upstream], [our changes][skia-ours]).
 
-[skia-upstream]: https://github.com/rust-skia/skia/compare/m88-0.36.2...google:chrome/m88
-[skia-ours]: https://github.com/google/skia/compare/chrome/m88...rust-skia:m88-0.36.2
+[skia-upstream]: https://github.com/rust-skia/skia/compare/m88-0.37.0...google:chrome/m88
+[skia-ours]: https://github.com/google/skia/compare/chrome/m88...rust-skia:m88-0.37.0
 
 ## Goals
 
