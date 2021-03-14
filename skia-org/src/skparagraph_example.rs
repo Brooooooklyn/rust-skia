@@ -1,13 +1,10 @@
 use crate::DrawingDriver;
 use skia_safe::textlayout::{FontCollection, ParagraphBuilder, ParagraphStyle, TextStyle};
-use skia_safe::{icu, Canvas, FontMgr, Paint, Point};
+use skia_safe::{Canvas, FontMgr, Paint, Point};
 use std::path;
 
 pub fn draw(driver: &mut impl DrawingDriver, path: &path::Path) {
     let path = path.join("SkParagraph-Example");
-
-    icu::init();
-
     driver.draw_image_256(&path, "lorem-ipsum", draw_lorem_ipsum);
 }
 
