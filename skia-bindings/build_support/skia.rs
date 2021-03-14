@@ -471,7 +471,6 @@ pub struct BinariesConfiguration {
 }
 
 const SKIA_OUTPUT_DIR: &str = "skia";
-const ICUDTL_DAT: &str = "icudtl.dat";
 
 impl BinariesConfiguration {
     /// Build a binaries configuration based on the current environment cargo
@@ -481,11 +480,9 @@ impl BinariesConfiguration {
         let target = cargo::target();
 
         let mut built_libraries = Vec::new();
-        let mut additional_files = Vec::new();
         let feature_ids = features.ids();
 
         if features.text_layout {
-            additional_files.push(ICUDTL_DAT.into());
             built_libraries.push(lib::SK_PARAGRAPH.into());
             built_libraries.push(lib::SK_SHAPER.into());
         }
@@ -557,7 +554,7 @@ impl BinariesConfiguration {
                 .map(|lib| lib.to_string())
                 .collect(),
             built_libraries,
-            additional_files,
+            additional_files: Vec::new(),
             skia_debug: build.skia_debug,
         }
     }
