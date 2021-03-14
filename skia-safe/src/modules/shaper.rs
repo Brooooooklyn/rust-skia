@@ -707,4 +707,11 @@ pub mod icu {
         let bounds = blob.bounds();
         assert!(bounds.width() > 0.0 && bounds.height() > 0.0);
     }
+
+    #[test]
+    #[serial_test::serial]
+    fn icu_init_is_idempotent() {
+        skia_bindings::icu::init();
+        skia_bindings::icu::init();
+    }
 }
