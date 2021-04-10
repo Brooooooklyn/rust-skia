@@ -1,5 +1,5 @@
 use super::{FontCollection, Paragraph, ParagraphStyle, PlaceholderStyle, TextStyle};
-use crate::prelude::*;
+use crate::{icu, prelude::*};
 use skia_bindings as sb;
 use std::os::raw;
 
@@ -59,6 +59,7 @@ impl RefHandle<sb::skia_textlayout_ParagraphBuilder> {
     }
 
     pub fn new(style: &ParagraphStyle, font_collection: impl Into<FontCollection>) -> Self {
+        icu::init();
         Self::from_ptr(unsafe {
             sb::C_ParagraphBuilder_make(style.native(), font_collection.into().into_ptr())
         })

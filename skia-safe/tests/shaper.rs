@@ -43,8 +43,6 @@ impl RunHandler for DebugRunHandler {
 #[test]
 #[serial_test::serial]
 fn test_rtl_text_shaping() {
-    skia_bindings::icu::init();
-
     let shaper = Shaper::new(None);
     shaper.shape(
         "العربية",

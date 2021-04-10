@@ -278,6 +278,10 @@ pub mod pdf {
             }
         }
 
+        // We enable harfbuzz font sub-setting in PDF documents if textlayout is enabled.
+        #[cfg(feature = "textlayout")]
+        crate::icu::init();
+
         // we can't move the memory stream around anymore as soon it's referred by
         // the document.
         let mut memory_stream = Box::pin(DynamicMemoryWStream::new());
