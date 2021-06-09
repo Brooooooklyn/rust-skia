@@ -504,7 +504,7 @@ impl BinariesConfiguration {
         let target = cargo::target();
 
         let mut built_libraries = Vec::new();
-        let mut additional_files = Vec::new();
+        let mut additional_files: Vec<PathBuf> = vec!["bindings.rs".into()];
         let feature_ids = features.ids();
 
         if features.text_layout {
@@ -735,9 +735,6 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
         })
         .size_t_is_usize(true)
         .parse_callbacks(Box::new(ParseCallbacks))
-        .raw_line("#![allow(clippy::all)]")
-        // GrVkBackendContext contains u128 fields on macOS
-        .raw_line("#![allow(improper_ctypes)]")
         .allowlist_function("C_.*")
         .constified_enum(".*Mask")
         .constified_enum(".*Flags")
@@ -922,9 +919,8 @@ fn generate_bindings(build: &FinalBuildConfiguration, output_directory: &Path) {
     println!("GENERATING BINDINGS");
     let bindings = builder.generate().expect("Unable to generate bindings");
 
-    let out_path = PathBuf::from("src");
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(output_directory.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 }
 

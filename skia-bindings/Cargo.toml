@@ -21,10 +21,8 @@ include = [
 	"build_support/**/*.rs", 
 	"src/**/*.h", 
 	"src/**/*.cpp", 
-	"src/defaults.rs", 
-	"src/icu.rs", 
-	"src/impls.rs",
-	"src/lib.rs" ]
+	"src/*.rs" 
+]
 
 [lib]
 doctest = false

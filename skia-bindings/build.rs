@@ -1,8 +1,8 @@
 mod build_support;
 use build_support::{binaries, cargo, git, skia, utils};
+use std::io;
 use std::io::Cursor;
 use std::path::Path;
-use std::{fs, io};
 
 /// Environment variables used by this build script.
 mod env {
@@ -59,7 +59,6 @@ mod env {
     }
 }
 
-const SRC_BINDINGS_RS: &str = "src/bindings.rs";
 const SKIA_LICENSE: &str = "skia/LICENSE";
 
 fn main() {
@@ -162,10 +161,7 @@ fn main() {
         );
 
         println!("EXPORTING BINARIES");
-        let source_files = &[
-            (SRC_BINDINGS_RS, "bindings.rs"),
-            (SKIA_LICENSE, "LICENSE_SKIA"),
-        ];
+        let source_files = &[(SKIA_LICENSE, "LICENSE_SKIA")];
         binaries::export(&binaries_config, source_files, &staging_directory)
             .expect("EXPORTING BINARIES FAILED")
     }
@@ -202,8 +198,6 @@ fn download_and_install(url: impl AsRef<str>, output_directory: &Path) -> io::Re
     );
     binaries::unpack(Cursor::new(archive), output_directory)?;
     // TODO: verify key?
-    println!("INSTALLING BINDINGS");
-    fs::copy(output_directory.join("bindings.rs"), SRC_BINDINGS_RS)?;
 
     Ok(())
 }
