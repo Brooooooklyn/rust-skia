@@ -46,7 +46,7 @@ impl fmt::Debug for Alloc {
 }
 
 // TODO: support the implementation of custom D3D memory allocator's
-// virtual createResource() function.
+// virtual createResource() and createAliasingResource() functions.
 pub type MemoryAllocator = RCHandle<GrD3DMemoryAllocator>;
 unsafe impl Send for MemoryAllocator {}
 unsafe impl Sync for MemoryAllocator {}

@@ -6,7 +6,7 @@ use super::gl;
 use super::mtl;
 #[cfg(feature = "vulkan")]
 use super::vk;
-use super::{BackendAPI, BackendSurfaceMutableState};
+use super::{BackendAPI, BackendSurfaceMutableState, Mipmapped};
 use crate::{prelude::*, ISize};
 use skia_bindings::{
     self as sb, GrBackendFormat, GrBackendRenderTarget, GrBackendTexture, GrMipmapped,
@@ -175,7 +175,7 @@ impl fmt::Debug for BackendTexture {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("BackendTexture");
         d.field("dimensions", &self.dimensions());
-        d.field("has_mipmaps", &self.has_mipmaps());
+        d.field("mipmapped", &self.mipmapped());
         d.field("backend", &self.backend());
         #[cfg(feature = "gl")]
         d.field("gl_texture_info", &self.gl_texture_info());
@@ -267,6 +267,10 @@ impl BackendTexture {
 
     pub fn height(&self) -> i32 {
         self.native().fHeight
+    }
+
+    pub fn mipmapped(&self) -> Mipmapped {
+        self.native().fMipmapped
     }
 
     #[deprecated(since = "0.35.0", note = "Use has_mipmaps()")]

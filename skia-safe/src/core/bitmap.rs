@@ -1,10 +1,8 @@
-use crate::{prelude::*, Image, SamplingOptions};
 use crate::{
-    AlphaType, Color, ColorSpace, ColorType, IPoint, IRect, ISize, ImageInfo, Matrix, Paint,
-    PixelRef, Pixmap, Shader, TileMode,
+    prelude::*, AlphaType, Color, ColorSpace, ColorType, IPoint, IRect, ISize, Image, ImageInfo,
+    Matrix, Paint, PixelRef, Pixmap, SamplingOptions, Shader, TileMode,
 };
-use skia_bindings as sb;
-use skia_bindings::SkBitmap;
+use skia_bindings::{self as sb, SkBitmap};
 use std::{ffi, fmt, ptr};
 
 /// [Bitmap] describes a two-dimensional raster pixel array. [Bitmap] is built on [ImageInfo],

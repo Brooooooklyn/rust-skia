@@ -2,6 +2,8 @@
     #define SK_SHAPER_HARFBUZZ_AVAILABLE
 #endif
 
+#include "bindings.h"
+
 #include "modules/skshaper/include/SkShaper.h"
 #include "include/core/SkFontMgr.h"
 
@@ -112,11 +114,6 @@ extern "C" SkShaper::LanguageRunIterator* C_SkShaper_TrivialLanguageRunIterator_
 extern "C" void C_SkShaper_RunHandler_delete(SkShaper::RunHandler* self) {
     delete self;
 }
-
-extern "C" struct TraitObject {
-    void* data;
-    void* vtable;
-};
 
 namespace RunHandler {
     extern "C" typedef void (*BeginLine)(TraitObject);

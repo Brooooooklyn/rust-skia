@@ -1,10 +1,7 @@
 use super::{PositionWithAffinity, RectHeightStyle, RectWidthStyle, TextBox};
-use crate::{prelude::*, scalar, textlayout::LineMetrics, Canvas, Point};
+use crate::{interop::VecSink, prelude::*, scalar, textlayout::LineMetrics, Canvas, Point};
 use skia_bindings as sb;
-use std::{
-    fmt,
-    ops::{Index, Range},
-};
+use std::{fmt, ops::Range};
 
 pub type Paragraph = RefHandle<sb::skia_textlayout_Paragraph>;
 unsafe impl Send for Paragraph {}
@@ -79,23 +76,48 @@ impl Paragraph {
         range: Range<usize>,
         rect_height_style: RectHeightStyle,
         rect_width_style: RectWidthStyle,
-    ) -> TextBoxes {
-        TextBoxes::construct(|tb| unsafe {
+    ) -> Vec<TextBox> {
+        let mut result: Vec<TextBox> = Vec::new();
+
+        let mut set_tb = |tbs: &[sb::skia_textlayout_TextBox]| {
+            result = tbs
+                .iter()
+                .map(|tb| TextBox::from_native_ref(tb))
+                .cloned()
+                .collect();
+        };
+
+        unsafe {
             sb::C_Paragraph_getRectsForRange(
                 self.native_mut_force(),
                 range.start.try_into().unwrap(),
                 range.end.try_into().unwrap(),
                 rect_height_style,
                 rect_width_style,
-                tb,
-            )
-        })
+                VecSink::new(&mut set_tb).native_mut(),
+            );
+        }
+        result
     }
 
-    pub fn get_rects_for_placeholders(&self) -> TextBoxes {
-        TextBoxes::construct(|tb| unsafe {
-            sb::C_Paragraph_getRectsForPlaceholders(self.native_mut_force(), tb)
-        })
+    pub fn get_rects_for_placeholders(&self) -> Vec<TextBox> {
+        let mut result: Vec<TextBox> = Vec::new();
+
+        let mut set_tb = |tbs: &[sb::skia_textlayout_TextBox]| {
+            result = tbs
+                .iter()
+                .map(|tb| TextBox::from_native_ref(tb))
+                .cloned()
+                .collect();
+        };
+
+        unsafe {
+            sb::C_Paragraph_getRectsForPlaceholders(
+                self.native_mut_force(),
+                VecSink::new(&mut set_tb).native_mut(),
+            )
+        }
+        result
     }
 
     pub fn get_glyph_position_at_coordinate(&self, p: impl Into<Point>) -> PositionWithAffinity {
@@ -115,11 +137,23 @@ impl Paragraph {
         range[0]..range[1]
     }
 
-    pub fn get_line_metrics(&self) -> LineMetricsVector {
-        Handle::<sb::LineMetricsVector>::construct(|lmv| unsafe {
-            sb::C_Paragraph_getLineMetrics(self.native_mut_force(), lmv)
-        })
-        .borrows(self)
+    pub fn get_line_metrics(&self) -> Vec<LineMetrics> {
+        let mut result: Vec<LineMetrics> = Vec::new();
+        let mut set_lm = |lms: &[sb::skia_textlayout_LineMetrics]| {
+            result = lms
+                .iter()
+                .map(|lm| LineMetrics::from_native_ref(lm).clone())
+                .collect();
+        };
+
+        unsafe {
+            sb::C_Paragraph_getLineMetrics(
+                self.native_mut_force(),
+                VecSink::new(&mut set_lm).native_mut(),
+            )
+        }
+
+        result
     }
 
     pub fn line_number(&self) -> usize {
@@ -129,116 +163,50 @@ impl Paragraph {
     pub fn mark_dirty(&mut self) {
         unsafe { sb::C_Paragraph_markDirty(self.native_mut()) }
     }
-}
 
-pub type TextBoxes = Handle<sb::TextBoxes>;
-
-impl NativeDrop for sb::TextBoxes {
-    fn drop(&mut self) {
-        unsafe { sb::C_TextBoxes_destruct(self) }
-    }
-}
-
-impl Index<usize> for TextBoxes {
-    type Output = TextBox;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_slice()[index]
-    }
-}
-
-impl AsRef<[TextBox]> for TextBoxes {
-    fn as_ref(&self) -> &[TextBox] {
-        self.as_slice()
-    }
-}
-
-impl fmt::Debug for TextBoxes {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("TextBoxes").field(&self.as_slice()).finish()
-    }
-}
-
-impl TextBoxes {
-    pub fn iter(&self) -> impl Iterator<Item = &TextBox> {
-        self.as_slice().iter()
+    pub fn unresolved_glyphs(&mut self) -> Option<usize> {
+        unsafe { sb::C_Paragraph_unresolvedGlyphs(self.native_mut()) }
+            .try_into()
+            .ok()
     }
 
-    pub fn as_slice(&self) -> &[TextBox] {
-        unsafe {
-            let mut count = 0;
-            let ptr = sb::C_TextBoxes_ptr_count(self.native(), &mut count);
-            safer::from_raw_parts(ptr as *const TextBox, count)
+    // TODO: wrap visit()
+}
+
+#[deprecated(since = "0.41.0", note = "Use Vec<TextBox>")]
+pub type TextBoxes = Vec<TextBox>;
+
+#[deprecated(since = "0.41.0", note = "Use Vec<LineMetrics>")]
+pub type LineMetricsVector<'a> = Vec<LineMetrics<'a>>;
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        icu,
+        textlayout::{FontCollection, ParagraphBuilder, ParagraphStyle, TextStyle},
+        FontMgr,
+    };
+
+    #[test]
+    #[serial_test::serial]
+    fn test_line_metrics() {
+        icu::init();
+
+        let mut font_collection = FontCollection::new();
+        font_collection.set_default_font_manager(FontMgr::new(), None);
+        let paragraph_style = ParagraphStyle::new();
+        let mut paragraph_builder = ParagraphBuilder::new(&paragraph_style, font_collection);
+        let ts = TextStyle::new();
+        paragraph_builder.push_style(&ts);
+        paragraph_builder.add_text(LOREM_IPSUM);
+        let mut paragraph = paragraph_builder.build();
+        paragraph.layout(256.0);
+
+        let line_metrics = paragraph.get_line_metrics();
+        for (line, lm) in line_metrics.iter().enumerate() {
+            println!("line {}: width: {}", line + 1, lm.width)
         }
+
+        static LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur at leo at nulla tincidunt placerat. Proin eget purus augue. Quisque et est ullamcorper, pellentesque felis nec, pulvinar massa. Aliquam imperdiet, nulla ut dictum euismod, purus dui pulvinar risus, eu suscipit elit neque ac est. Nullam eleifend justo quis placerat ultricies. Vestibulum ut elementum velit. Praesent et dolor sit amet purus bibendum mattis. Aliquam erat volutpat.";
     }
-}
-
-pub type LineMetricsVector<'a> = Borrows<'a, Handle<sb::LineMetricsVector>>;
-
-impl NativeDrop for sb::LineMetricsVector {
-    fn drop(&mut self) {
-        unsafe { sb::C_LineMetricsVector_destruct(self) }
-    }
-}
-
-impl<'a> Index<usize> for LineMetricsVector<'a> {
-    type Output = LineMetrics<'a>;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_slice()[index]
-    }
-}
-
-impl<'a> AsRef<[LineMetrics<'a>]> for LineMetricsVector<'a> {
-    fn as_ref(&self) -> &[LineMetrics<'a>] {
-        self.as_slice()
-    }
-}
-
-impl fmt::Debug for LineMetricsVector<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("LineMetricsVector")
-            .field(&self.as_slice())
-            .finish()
-    }
-}
-
-impl<'a> LineMetricsVector<'a> {
-    pub fn iter(&self) -> impl Iterator<Item = &'a LineMetrics<'a>> {
-        self.as_slice().iter()
-    }
-
-    pub fn as_slice(&self) -> &'a [LineMetrics<'a>] {
-        unsafe {
-            let mut count = 0;
-            let ptr = sb::C_LineMetricsVector_ptr_count(self.native(), &mut count);
-            safer::from_raw_parts(ptr as *const LineMetrics, count)
-        }
-    }
-}
-
-#[test]
-#[serial_test::serial]
-fn test_line_metrics() {
-    // note: some of the following code is copied from the skparagraph skia-org example.
-    use crate::icu;
-    use crate::textlayout::{FontCollection, ParagraphBuilder, ParagraphStyle, TextStyle};
-    use crate::FontMgr;
-
-    icu::init();
-
-    let mut font_collection = FontCollection::new();
-    font_collection.set_default_font_manager(FontMgr::new(), None);
-    let paragraph_style = ParagraphStyle::new();
-    let mut paragraph_builder = ParagraphBuilder::new(&paragraph_style, font_collection);
-    let ts = TextStyle::new();
-    paragraph_builder.push_style(&ts);
-    paragraph_builder.add_text(LOREM_IPSUM);
-    let mut paragraph = paragraph_builder.build();
-    paragraph.layout(256.0);
-
-    let line_metrics = paragraph.get_line_metrics();
-    for (line, lm) in line_metrics.iter().enumerate() {
-        println!("line {}: width: {}", line + 1, lm.width)
-    }
-
-    static LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur at leo at nulla tincidunt placerat. Proin eget purus augue. Quisque et est ullamcorper, pellentesque felis nec, pulvinar massa. Aliquam imperdiet, nulla ut dictum euismod, purus dui pulvinar risus, eu suscipit elit neque ac est. Nullam eleifend justo quis placerat ultricies. Vestibulum ut elementum velit. Praesent et dolor sit amet purus bibendum mattis. Aliquam erat volutpat.";
 }

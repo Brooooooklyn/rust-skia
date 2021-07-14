@@ -3,7 +3,7 @@
 
 use crate::{
     SkBlendMode, SkBlurStyle, SkCanvas_Lattice_RectType, SkClipOp, SkPaint_Cap, SkPaint_Join,
-    SkPathDirection, SkTileMode, SkYUVColorSpace,
+    SkParsePath_PathEncoding, SkPathDirection, SkTileMode, SkYUVColorSpace,
 };
 
 impl Default for SkBlendMode {
@@ -58,6 +58,12 @@ impl Default for SkPathDirection {
 impl Default for SkTileMode {
     fn default() -> Self {
         SkTileMode::Clamp
+    }
+}
+
+impl Default for SkParsePath_PathEncoding {
+    fn default() -> Self {
+        SkParsePath_PathEncoding::Absolute
     }
 }
 

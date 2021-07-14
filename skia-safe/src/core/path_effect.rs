@@ -148,15 +148,6 @@ impl PathEffect {
         }
     }
 
-    pub fn compute_fast_bounds(&self, src: impl AsRef<Rect>) -> Rect {
-        let mut r: Rect = Rect::default();
-        unsafe {
-            self.native()
-                .computeFastBounds(r.native_mut(), src.as_ref().native())
-        };
-        r
-    }
-
     // TODO: rename to to_points()?
     pub fn as_points(
         &self,

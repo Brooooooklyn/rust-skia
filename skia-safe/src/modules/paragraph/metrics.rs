@@ -3,7 +3,7 @@ use skia_bindings::{self as sb, skia_textlayout_LineMetrics, skia_textlayout_Sty
 use std::{marker, mem, ops::Range, ptr};
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StyleMetrics<'a> {
     pub text_style: &'a TextStyle,
     pub font_metrics: FontMetrics,
@@ -26,7 +26,7 @@ impl<'a> StyleMetrics<'a> {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LineMetrics<'a> {
     pub start_index: usize,
     pub end_index: usize,
@@ -46,8 +46,10 @@ pub struct LineMetrics<'a> {
     pd: marker::PhantomData<&'a StyleMetrics<'a>>,
 }
 
+impl NativeTransmutable<skia_textlayout_LineMetrics> for LineMetrics<'_> {}
+
 // Internal Line Metrics mirror to compute what the map takes up space.
-// In case this computation is incorrect, the NativeTransmutable test below will fail.
+// If the size of the structure does not match, the NativeTransmutable test below will fail.
 #[repr(C)]
 struct LMInternal {
     start_end: [usize; 4],
@@ -55,8 +57,6 @@ struct LMInternal {
     seven_metrics: [f64; 7],
     line_number: usize,
 }
-
-impl NativeTransmutable<skia_textlayout_LineMetrics> for LineMetrics<'_> {}
 
 #[test]
 fn test_line_metrics_layout() {

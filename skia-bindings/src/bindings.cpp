@@ -88,8 +88,8 @@
 // utils/
 #include "include/utils/SkCamera.h"
 #include "include/utils/SkCustomTypeface.h"
-#include "include/utils/SkInterpolator.h"
 #include "include/utils/SkNullCanvas.h"
+#include "include/utils/SkOrderedFontMgr.h"
 #include "include/utils/SkParsePath.h"
 #include "include/utils/SkShadowUtils.h"
 #include "include/utils/SkTextUtils.h"
@@ -831,6 +831,10 @@ extern "C" bool C_SkM44_equals(const SkM44 *self, const SkM44 *other) {
     return *self == *other;
 }
 
+extern "C" void C_SkM44_RectToRect(const SkRect* src, const SkRect* dst, SkM44* uninitialized) {
+    new(uninitialized) SkM44(SkM44::RectToRect(*src, *dst));
+}
+
 extern "C" void C_SkM44_LookAt(const SkV3* eye, const SkV3* center, const SkV3* up, SkM44* uninitialized) {
     new(uninitialized) SkM44(SkM44::LookAt(*eye, *center, *up));
 }
@@ -1283,6 +1287,10 @@ extern "C" void C_SkFont_ConstructFromTypefaceWithSizeScaleAndSkew(SkFont* unini
     new(uninitialized) SkFont(sp(typeface), size, scaleX, skewX);
 }
 
+extern "C" void C_SkFont_destruct(SkFont* self) {
+    self->~SkFont();
+}
+
 extern "C" bool C_SkFont_Equals(const SkFont* self, const SkFont* other) {
     return *self == *other;
 }
@@ -1307,8 +1315,16 @@ extern "C" void C_SkFont_setTypeface(SkFont* self, SkTypeface* tf) {
     self->setTypeface(sp(tf));
 }
 
-extern "C" void C_SkFont_destruct(SkFont* self) {
-    self->~SkFont();
+extern "C" void C_SkFont_getIntercepts(
+    const SkFont* self, 
+    const SkGlyphID glyphs[], 
+    int count, 
+    const SkPoint pos[], 
+    SkScalar top, SkScalar bottom, 
+    const SkPaint* paint, 
+    VecSink<SkScalar>* vs) {
+    auto r = self->getIntercepts(glyphs, count, pos, top, bottom, paint);
+    vs->set(r);
 }
 
 //
@@ -2280,12 +2296,22 @@ extern "C" SkColorFilter* C_SkOverdrawColorFilter_MakeWithSkColors(const SkColor
 
 extern "C" {
 
-SkRuntimeEffect *C_SkRuntimeEffect_Make(
+SkRuntimeEffect *C_SkRuntimeEffect_MakeForColorFilter(
     const SkString *sksl,
     const SkRuntimeEffect::Options *options,
     SkString *error)
 {
-    auto r = SkRuntimeEffect::Make(*sksl, *options);
+    auto r = SkRuntimeEffect::MakeForColorFilter(*sksl, *options);
+    *error = r.errorText;
+    return r.effect.release();
+}
+
+SkRuntimeEffect *C_SkRuntimeEffect_MakeForShader(
+    const SkString *sksl,
+    const SkRuntimeEffect::Options *options,
+    SkString *error)
+{
+    auto r = SkRuntimeEffect::MakeForShader(*sksl, *options);
     *error = r.errorText;
     return r.effect.release();
 }
@@ -2326,16 +2352,10 @@ const SkRuntimeEffect::Uniform* C_SkRuntimeEffect_uniforms(const SkRuntimeEffect
     return &*uniforms.begin();
 }
 
-const SkString* C_SkRuntimeEffect_children(const SkRuntimeEffect* self, size_t* count) {
+const SkRuntimeEffect::Child* C_SkRuntimeEffect_children(const SkRuntimeEffect* self, size_t* count) {
     auto children = self->children();
     *count = children.count();
     return &*children.begin();
-}
-
-const SkRuntimeEffect::Varying* C_SkRuntimeEffect_varyings(const SkRuntimeEffect* self, size_t* count) {
-    auto varyings = self->varyings();
-    *count = varyings.count();
-    return &*varyings.begin();
 }
 
 }
@@ -2699,23 +2719,15 @@ C_SkCustomTypefaceBuilder_setGlyph3(SkCustomTypefaceBuilder *self, SkGlyphID gly
     self->setGlyph(glyph, advance, sp(picture));
 }
 */
- 
-extern "C" void C_SkInterpolator_destruct(SkInterpolator* self) {
-    self->~SkInterpolator();
-}
-
-extern "C" void C_SkInterpolator_setRepeatCount(SkInterpolator* self, SkScalar repeatCount) {
-    self->setRepeatCount(repeatCount);
-}
-
-extern "C" void C_SkInterpolator_setReset(SkInterpolator* self, bool reset) {
-    self->setReset(reset);
-}
-
-extern "C" void C_SkInterpolator_setMirror(SkInterpolator* self, bool mirror) {
-    self->setMirror(mirror);
-}
 
 extern "C" SkCanvas* C_SkMakeNullCanvas() {
     return SkMakeNullCanvas().release();
+}
+
+extern "C" SkOrderedFontMgr* C_SkOrderedFontMgr_new() {
+    return new SkOrderedFontMgr();
+}
+
+extern "C" void C_SkOrderedFontMgr_append(SkOrderedFontMgr* self, SkFontMgr* fontMgr) {
+    self->append(sp(fontMgr));
 }

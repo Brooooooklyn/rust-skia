@@ -177,7 +177,7 @@ impl NativePartialEq for sb::skia_textlayout_TextStyle {
     }
 }
 
-impl Default for Handle<sb::skia_textlayout_TextStyle> {
+impl Default for TextStyle {
     fn default() -> Self {
         Self::new()
     }
@@ -197,6 +197,7 @@ impl fmt::Debug for TextStyle {
             .field("font_families", &self.font_families())
             .field("height", &self.height())
             .field("height_override", &self.height_override())
+            .field("half_leading", &self.half_leading())
             .field("letter_spacing", &self.letter_spacing())
             .field("word_spacing", &self.word_spacing())
             .field("typeface", &self.typeface())
@@ -207,7 +208,7 @@ impl fmt::Debug for TextStyle {
     }
 }
 
-impl Handle<sb::skia_textlayout_TextStyle> {
+impl TextStyle {
     pub fn new() -> Self {
         TextStyle::construct(|ts| unsafe { sb::C_TextStyle_Construct(ts) })
     }
@@ -286,10 +287,9 @@ impl Handle<sb::skia_textlayout_TextStyle> {
 
     pub fn shadows(&self) -> &[TextShadow] {
         unsafe {
-            let ts: &sb::TextShadows = transmute_ref(&self.native().fTextShadows);
-            let mut cnt = 0;
-            let ptr = TextShadow::from_native_ptr(sb::C_TextShadows_ptr_count(ts, &mut cnt));
-            safer::from_raw_parts(ptr, cnt)
+            let mut count = 0;
+            let ptr = sb::C_TextStyle_getShadows(&self.native().fTextShadows, &mut count);
+            safer::from_raw_parts(TextShadow::from_native_ptr(ptr), count)
         }
     }
 
@@ -305,10 +305,9 @@ impl Handle<sb::skia_textlayout_TextStyle> {
 
     pub fn font_features(&self) -> &[FontFeature] {
         unsafe {
-            let ff: &sb::FontFeatures = transmute_ref(&self.native().fFontFeatures);
-            let mut cnt = 0;
-            let ptr = FontFeature::from_native_ptr(sb::C_FontFeatures_ptr_count(ff, &mut cnt));
-            safer::from_raw_parts(ptr, cnt)
+            let mut count = 0;
+            let ptr = sb::C_TextStyle_getFontFeatures(&self.native().fFontFeatures, &mut count);
+            safer::from_raw_parts(FontFeature::from_native_ptr(ptr), count)
         }
     }
 
@@ -368,6 +367,15 @@ impl Handle<sb::skia_textlayout_TextStyle> {
 
     pub fn height_override(&self) -> bool {
         self.native().fHeightOverride
+    }
+
+    pub fn set_half_leading(&mut self, half_leading: bool) -> &mut Self {
+        self.native_mut().fHalfLeading = half_leading;
+        self
+    }
+
+    pub fn half_leading(&self) -> bool {
+        self.native().fHalfLeading
     }
 
     pub fn set_letter_spacing(&mut self, letter_spacing: scalar) -> &mut Self {

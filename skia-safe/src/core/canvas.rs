@@ -2,9 +2,9 @@
 use crate::gpu;
 use crate::{
     prelude::*, scalar, u8cpu, Bitmap, BlendMode, ClipOp, Color, Color4f, Data, Drawable,
-    FilterMode, Font, IPoint, IRect, ISize, Image, ImageFilter, ImageInfo, Matrix, Paint, Path,
-    Picture, Pixmap, Point, QuickReject, RRect, Rect, Region, SamplingOptions, Shader, Surface,
-    SurfaceProps, TextBlob, TextEncoding, Vector, Vertices, M44,
+    FilterMode, Font, GlyphId, IPoint, IRect, ISize, Image, ImageFilter, ImageInfo, Matrix, Paint,
+    Path, Picture, Pixmap, Point, QuickReject, RRect, RSXform, Rect, Region, SamplingOptions,
+    Shader, Surface, SurfaceProps, TextBlob, TextEncoding, Vector, Vertices, M44,
 };
 use skia_bindings as sb;
 use skia_bindings::{
@@ -163,6 +163,25 @@ pub struct TopLayerPixels<'a> {
     pub row_bytes: usize,
     /// [`Canvas`] top layer origin, its top-left corner
     pub origin: IPoint,
+}
+
+/// Used to pass either a slice of [`Point`] or [`RSXform`] to [`Canvas::draw_glyphs_at`].
+#[derive(Clone, Debug)]
+pub enum GlyphPositions<'a> {
+    Points(&'a [Point]),
+    RSXforms(&'a [RSXform]),
+}
+
+impl<'a> From<&'a [Point]> for GlyphPositions<'a> {
+    fn from(points: &'a [Point]) -> Self {
+        Self::Points(points)
+    }
+}
+
+impl<'a> From<&'a [RSXform]> for GlyphPositions<'a> {
+    fn from(rs_xforms: &'a [RSXform]) -> Self {
+        Self::RSXforms(rs_xforms)
+    }
 }
 
 ///  [`Canvas`] provides an interface for drawing, and how the drawing is clipped and transformed.
@@ -1747,6 +1766,128 @@ impl Canvas {
             )
         }
         self
+    }
+
+    /// Draws glyphs at positions relative to origin styled with font and paint with
+    /// supporting utf8 and cluster information.
+    ///
+    /// This function draw glyphs at the given positions relative to the given origin.
+    /// It does not perform typeface fallback for glyphs not found in the SkTypeface in font.
+    ///
+    /// The drawing obeys the current transform matrix and clipping.
+    ///
+    /// All elements of paint: [`crate::PathEffect`], [`crate::MaskFilter`], [`Shader`],
+    /// [`crate::ColorFilter`], and [`ImageFilter`]; apply to text. By default, draws filled black
+    /// glyphs.
+    ///
+    /// - `count`           number of glyphs to draw
+    /// - `glyphs`          the array of glyphIDs to draw
+    /// - `positions`       where to draw each glyph relative to origin
+    /// - `clusters`        array of size count of cluster information
+    /// - `utf8_text`       utf8text supporting information for the glyphs
+    /// - `origin`          the origin of all the positions
+    /// - `font`            typeface, text size and so, used to describe the text
+    /// - `paint`           blend, color, and so on, used to draw
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_glyphs_utf8(
+        &mut self,
+        glyphs: &[GlyphId],
+        positions: &[Point],
+        clusters: &[u32],
+        utf8_text: impl AsRef<str>,
+        origin: impl Into<Point>,
+        font: &Font,
+        paint: &Paint,
+    ) {
+        let count = glyphs.len();
+        if count == 0 {
+            return;
+        }
+        assert_eq!(positions.len(), count);
+        assert_eq!(clusters.len(), count);
+        let utf8_text = utf8_text.as_ref().as_bytes();
+        let origin = origin.into();
+        unsafe {
+            self.native_mut().drawGlyphs(
+                count.try_into().unwrap(),
+                glyphs.as_ptr(),
+                positions.native().as_ptr(),
+                clusters.as_ptr(),
+                utf8_text.len().try_into().unwrap(),
+                utf8_text.as_ptr() as _,
+                origin.into_native(),
+                font.native(),
+                paint.native(),
+            )
+        }
+    }
+
+    /// Draws count glyphs, at positions relative to origin styled with font and paint.
+    ///
+    /// This function draw glyphs at the given positions relative to the given origin.
+    /// It does not perform typeface fallback for glyphs not found in the SkTypeface in font.
+    ///
+    /// The drawing obeys the current transform matrix and clipping.
+    ///
+    /// All elements of paint: [`crate::PathEffect`], [`crate::MaskFilter`], [`Shader`],
+    /// [`crate::ColorFilter`], and [`ImageFilter`]; apply to text. By default, draws filled black
+    /// glyphs.
+    ///
+    /// - `count`       number of glyphs to draw
+    /// - `glyphs`      the array of glyphIDs to draw
+    /// - `positions`   where to draw each glyph relative to origin, either a `&[Point]` or
+    ///                `&[RSXform]` slice
+    /// - `origin`      the origin of all the positions
+    /// - `font`        typeface, text size and so, used to describe the text
+    /// - `paint`       blend, color, and so on, used to draw
+    pub fn draw_glyphs_at<'a>(
+        &mut self,
+        glyphs: &[GlyphId],
+        positions: impl Into<GlyphPositions<'a>>,
+        origin: impl Into<Point>,
+        font: &Font,
+        paint: &Paint,
+    ) {
+        let count = glyphs.len();
+        if count == 0 {
+            return;
+        }
+        let positions: GlyphPositions = positions.into();
+        let origin = origin.into();
+
+        let glyphs = glyphs.as_ptr();
+        let origin = origin.into_native();
+        let font = font.native();
+        let paint = paint.native();
+
+        match positions {
+            GlyphPositions::Points(points) => {
+                assert_eq!(points.len(), count);
+                unsafe {
+                    self.native_mut().drawGlyphs1(
+                        count.try_into().unwrap(),
+                        glyphs,
+                        points.native().as_ptr(),
+                        origin,
+                        font,
+                        paint,
+                    )
+                }
+            }
+            GlyphPositions::RSXforms(xforms) => {
+                assert_eq!(xforms.len(), count);
+                unsafe {
+                    self.native_mut().drawGlyphs2(
+                        count.try_into().unwrap(),
+                        glyphs,
+                        xforms.native().as_ptr(),
+                        origin,
+                        font,
+                        paint,
+                    )
+                }
+            }
+        }
     }
 
     /// Draws [`TextBlob`] blob at `(origin.x, origin.y)`, using clip, [`Matrix`], and [`Paint`]

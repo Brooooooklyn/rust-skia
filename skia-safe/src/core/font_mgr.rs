@@ -128,7 +128,12 @@ impl FontMgr {
         (0..self.count_families()).map(move |i| self.family_name(i))
     }
 
+    #[deprecated(since = "0.41.0", note = "Use new_style_set")]
     pub fn new_styleset(&self, index: usize) -> FontStyleSet {
+        self.new_style_set(index)
+    }
+
+    pub fn new_style_set(&self, index: usize) -> FontStyleSet {
         assert!(index < self.count_families());
         FontStyleSet::from_ptr(unsafe { self.native().createStyleSet(index.try_into().unwrap()) })
             .unwrap()
@@ -219,7 +224,7 @@ mod tests {
         for i in 0..families {
             let name = font_mgr.family_name(i);
             println!("font_family: {}", name);
-            let mut style_set = font_mgr.new_styleset(i);
+            let mut style_set = font_mgr.new_style_set(i);
             for style_index in 0..style_set.count() {
                 let (_, style_name) = style_set.style(style_index);
                 if let Some(style_name) = style_name {

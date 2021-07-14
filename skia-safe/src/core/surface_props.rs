@@ -107,6 +107,10 @@ impl SurfaceProps {
         SurfacePropsFlags::from_bits_truncate(self.native().fFlags)
     }
 
+    pub fn clone_with_pixel_geometry(&self, new_pixel_geometry: PixelGeometry) -> Self {
+        Self::new(self.flags(), new_pixel_geometry)
+    }
+
     pub fn pixel_geometry(self) -> PixelGeometry {
         PixelGeometry::from_native_c(self.native().fPixelGeometry)
     }

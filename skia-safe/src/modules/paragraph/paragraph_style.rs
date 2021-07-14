@@ -47,6 +47,8 @@ impl fmt::Debug for StrutStyle {
             .field("leading", &self.leading())
             .field("strut_enabled", &self.strut_enabled())
             .field("force_strut_height", &self.force_strut_height())
+            .field("height_override", &self.height_override())
+            .field("half_leading", &self.half_leading())
             .finish()
     }
 }
@@ -124,6 +126,24 @@ impl StrutStyle {
 
     pub fn set_force_strut_height(&mut self, force_height: bool) -> &mut Self {
         self.native_mut().fForceHeight = force_height;
+        self
+    }
+
+    pub fn height_override(&self) -> bool {
+        self.native().fHeightOverride
+    }
+
+    pub fn set_height_override(&mut self, height_override: bool) -> &mut Self {
+        self.native_mut().fHeightOverride = height_override;
+        self
+    }
+
+    pub fn half_leading(&self) -> bool {
+        self.native().fHalfLeading
+    }
+
+    pub fn set_half_leading(&mut self, half_leading: bool) -> &mut Self {
+        self.native_mut().fHalfLeading = half_leading;
         self
     }
 }

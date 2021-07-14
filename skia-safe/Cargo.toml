@@ -12,7 +12,7 @@ keywords = ["skia", "rust-bindings", "vulkan", "opengl", "pdf"]
 categories = ["api-bindings", "graphics", "multimedia::images", "rendering::graphics-api", "visualization"] 
 license = "MIT"
 
-version = "0.40.2"
+version = "0.41.0"
 authors = ["Armin Sander <armin@replicator.org>"]
 edition = "2018"
 
@@ -44,7 +44,7 @@ shaper = ["textlayout", "skia-bindings/shaper"]
 [dependencies]
 bitflags = "1.2"
 lazy_static = "1.4"
-skia-bindings = { version = "=0.40.2", path = "../skia-bindings", default-features = false }
+skia-bindings = { version = "=0.41.0", path = "../skia-bindings", default-features = false }
 # for d3d types
 winapi = { version = "0.3.9", features = ["d3d12", "dxgi"], optional = true }
 # for ComPtr

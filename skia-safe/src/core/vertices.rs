@@ -1,9 +1,6 @@
 use crate::{prelude::*, Color, Point, Rect};
-use skia_bindings::{
-    self as sb, SkPoint, SkVertices, SkVertices_Attribute, SkVertices_Attribute_Type,
-    SkVertices_Builder,
-};
-use std::{ffi::CStr, fmt, marker::PhantomData, os::raw::c_char, ptr, slice};
+use skia_bindings::{self as sb, SkPoint, SkVertices, SkVertices_Builder};
+use std::{fmt, ptr, slice};
 
 #[deprecated(since = "0.29.0", note = "removed without replacement")]
 pub type BoneIndices = [u32; 4];
@@ -22,101 +19,6 @@ pub use skia_bindings::SkVertices_VertexMode as VertexMode;
 #[test]
 fn test_vertices_vertex_mode_naming() {
     let _ = VertexMode::Triangles;
-}
-
-#[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum AttributeType {
-    Float = sb::SkVertices_Attribute_Type::Float as _,
-    Float2 = sb::SkVertices_Attribute_Type::Float2 as _,
-    Float3 = sb::SkVertices_Attribute_Type::Float3 as _,
-    Float4 = sb::SkVertices_Attribute_Type::Float4 as _,
-    Byte4UNorm = sb::SkVertices_Attribute_Type::Byte4_unorm as _,
-}
-
-impl NativeTransmutable<SkVertices_Attribute_Type> for AttributeType {}
-#[test]
-fn test_attribute_type_layout() {
-    AttributeType::test_layout()
-}
-
-pub use skia_bindings::SkVertices_Attribute_Usage as AttributeUsage;
-#[test]
-fn test_attribute_usage_naming() {
-    let _ = AttributeUsage::Vector;
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Eq, Debug)]
-pub struct Attribute<'a> {
-    pub ty: AttributeType,
-    pub usage: AttributeUsage,
-    pub marker_id: u32,
-    marker_name: *const c_char,
-    pd: PhantomData<&'a CStr>,
-}
-
-impl NativeTransmutable<SkVertices_Attribute> for Attribute<'_> {}
-#[test]
-fn test_attribute_layout() {
-    Attribute::test_layout()
-}
-
-impl PartialEq for Attribute<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.ty == other.ty && self.usage == other.usage && self.marker_id == other.marker_id
-    }
-}
-
-impl Default for Attribute<'_> {
-    fn default() -> Self {
-        Attribute::new(AttributeType::Float)
-    }
-}
-
-impl Attribute<'_> {
-    pub fn new(ty: AttributeType) -> Self {
-        Self::new_with_usage_and_marker(ty, None, None)
-    }
-
-    pub fn new_with_usage_and_marker<'a>(
-        ty: AttributeType,
-        usage: impl Into<Option<AttributeUsage>>,
-        marker_name: impl Into<Option<&'a CStr>>,
-    ) -> Attribute<'a> {
-        let marker_name = marker_name
-            .into()
-            .map(|m| m.as_ptr())
-            .unwrap_or(ptr::null());
-
-        Attribute::from_native_c(unsafe {
-            SkVertices_Attribute::new(
-                ty.into_native(),
-                usage.into().unwrap_or(AttributeUsage::Raw),
-                marker_name,
-            )
-        })
-    }
-
-    pub fn marker_name(&self) -> Option<&CStr> {
-        if !self.marker_name.is_null() {
-            unsafe { CStr::from_ptr(self.marker_name) }.into()
-        } else {
-            None
-        }
-    }
-
-    pub fn channel_count(self) -> usize {
-        unsafe { self.native().channelCount() }.try_into().unwrap()
-    }
-
-    pub fn bytes_per_vertex(self) -> usize {
-        unsafe { self.native().bytesPerVertex() }
-    }
-
-    pub fn is_valid(self) -> bool {
-        unsafe { self.native().isValid() }
-    }
 }
 
 pub type Vertices = RCHandle<SkVertices>;
@@ -353,8 +255,6 @@ impl Builder {
             ))
         }
     }
-
-    // TODO: customData()
 
     pub fn tex_coords(&mut self) -> Option<&mut [Point]> {
         unsafe {

@@ -1,13 +1,10 @@
-use crate::interop::DynamicMemoryWStream;
-use crate::prelude::*;
-use crate::{Data, Rect};
-use skia_bindings as sb;
-use skia_bindings::SkCanvas;
-use std::pin::Pin;
-use std::ptr;
+use crate::{interop::DynamicMemoryWStream, prelude::*, Data, Rect};
+use skia_bindings::{self as sb, SkCanvas};
 use std::{
     fmt,
     ops::{Deref, DerefMut},
+    pin::Pin,
+    ptr,
 };
 
 pub struct Canvas {
@@ -42,6 +39,7 @@ bitflags! {
     pub struct Flags : u32 {
         const CONVERT_TEXT_TO_PATHS = sb::SkSVGCanvas_kConvertTextToPaths_Flag as _;
         const NO_PRETTY_XML = sb::SkSVGCanvas_kNoPrettyXML_Flag as _;
+        const RELATIVE_PATH_ENCODING = sb::SkSVGCanvas_kRelativePathEncoding_Flag as _;
     }
 }
 
@@ -87,24 +85,30 @@ impl Canvas {
     }
 }
 
-#[test]
-fn test_svg() {
-    use crate::Paint;
+#[cfg(test)]
+mod tests {
+    use super::Canvas;
+    use crate::Rect;
 
-    let mut canvas = Canvas::new(&Rect::from_size((20, 20)), None);
-    let paint = Paint::default();
-    canvas.draw_circle((10, 10), 10.0, &paint);
-    let data = canvas.end();
-    let contents = String::from_utf8_lossy(data.as_bytes());
-    dbg!(&contents);
-    assert!(contents.contains(r#"<ellipse cx="10" cy="10" rx="10" ry="10"/>"#));
-    assert!(contents.contains(r#"</svg>"#));
-}
+    #[test]
+    fn test_svg() {
+        use crate::Paint;
 
-#[test]
-fn test_svg_without_ending() {
-    use crate::Paint;
-    let mut canvas = Canvas::new(&Rect::from_size((20, 20)), None);
-    let paint = Paint::default();
-    canvas.draw_circle((10, 10), 10.0, &paint);
+        let mut canvas = Canvas::new(&Rect::from_size((20, 20)), None);
+        let paint = Paint::default();
+        canvas.draw_circle((10, 10), 10.0, &paint);
+        let data = canvas.end();
+        let contents = String::from_utf8_lossy(data.as_bytes());
+        dbg!(&contents);
+        assert!(contents.contains(r#"<ellipse cx="10" cy="10" rx="10" ry="10"/>"#));
+        assert!(contents.contains(r#"</svg>"#));
+    }
+
+    #[test]
+    fn test_svg_without_ending() {
+        use crate::Paint;
+        let mut canvas = Canvas::new(&Rect::from_size((20, 20)), None);
+        let paint = Paint::default();
+        canvas.draw_circle((10, 10), 10.0, &paint);
+    }
 }

@@ -147,6 +147,14 @@ impl IRect {
         self.bottom = height;
     }
 
+    pub fn set_size(&mut self, size: impl Into<ISize>) {
+        let size = size.into();
+        self.left = 0;
+        self.top = 0;
+        self.right = size.width;
+        self.bottom = size.height;
+    }
+
     #[must_use]
     pub fn with_offset(&self, delta: impl Into<IVector>) -> Self {
         let mut copied = *self;

@@ -1,12 +1,14 @@
-/// Simple Skia types that are not exported and used to
-/// to marshal between Rust and Skia types only.
+/// Skia and C++ types that are used to to marshal between Rust and C++.
+mod cpp;
+pub use cpp::*;
+
 mod stream;
-pub(crate) use self::stream::*;
+pub use self::stream::*;
 
 mod string;
-pub(crate) use self::string::*;
+pub use self::string::*;
 
 #[cfg(feature = "textlayout")]
 mod strings;
 #[cfg(feature = "textlayout")]
-pub(crate) use self::strings::*;
+pub use self::strings::*;

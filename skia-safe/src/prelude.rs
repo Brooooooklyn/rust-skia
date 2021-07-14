@@ -2,13 +2,16 @@ use skia_bindings::{
     C_SkRefCntBase_ref, C_SkRefCntBase_unique, C_SkRefCntBase_unref, SkNVRefCnt, SkRefCnt,
     SkRefCntBase,
 };
-use std::hash::{Hash, Hasher};
-use std::mem::MaybeUninit;
-use std::ops::{Deref, DerefMut, Index, IndexMut};
-use std::{mem, ptr, slice};
+use std::{
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    mem::{self, MaybeUninit},
+    ops::{Deref, DerefMut, Index, IndexMut},
+    ptr, slice,
+};
+
 // Re-export TryFrom / TryInto to make them available in all modules that use prelude::*.
 pub use std::convert::{TryFrom, TryInto};
-use std::marker::PhantomData;
 
 /// Swiss army knife to convert any reference into any other.
 pub(crate) unsafe fn transmute_ref<FromT, ToT>(from: &FromT) -> &ToT {
@@ -509,17 +512,22 @@ impl<N: NativeRefCounted> AsRef<RCHandle<N>> for RCHandle<N> {
 }
 
 impl<N: NativeRefCounted> RCHandle<N> {
-    /// Creates an RCHandle from a pointer.
-    /// Returns None if the pointer is null.
-    /// Does not increase the reference count.
+    /// Creates an reference counted handle from a native pointer.
+    ///
+    /// Takes ownership of the object the pointer points to, does not increase the reference count.
+    ///
+    /// Returns `None` if the pointer is `null`.
     #[inline]
     pub(crate) fn from_ptr(ptr: *mut N) -> Option<Self> {
         ptr::NonNull::new(ptr).map(Self)
     }
 
-    /// Creates an RCHandle from a pointer.
-    /// Returns None if the pointer is null.
-    /// Increases the reference count.
+    /// Creates an reference counted handle from a pointer.
+    ///
+    /// Returns `None` if the pointer is `null`.
+    ///
+    /// Shares ownership with the object referenced to by the pointer, therefore increases the
+    /// reference count.
     #[inline]
     pub(crate) fn from_unshared_ptr(ptr: *mut N) -> Option<Self> {
         ptr::NonNull::new(ptr).map(|ptr| {
@@ -653,7 +661,10 @@ where
 
 /// Trait to use native types that as a rust type
 /// _inplace_ with the same size and field layout.
-pub trait NativeTransmutable<NT: Sized>: Sized {
+pub trait NativeTransmutable<NT: Sized>: Sized
+where
+    Self: Sized,
+{
     /// Provides access to the native value through a
     /// transmuted reference to the Rust value.
     fn native(&self) -> &NT {

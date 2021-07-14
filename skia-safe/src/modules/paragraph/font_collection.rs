@@ -1,11 +1,11 @@
 use crate::{
-    interop::{self, FromStrs},
+    interop::{self, FromStrs, VecSink},
     prelude::*,
     textlayout::ParagraphCache,
     FontMgr, FontStyle, Typeface, Unichar,
 };
 use skia_bindings::{self as sb, skia_textlayout_FontCollection};
-use std::{ffi, fmt};
+use std::{ffi, fmt, ptr};
 
 pub type FontCollection = RCHandle<skia_textlayout_FontCollection>;
 
@@ -110,16 +110,28 @@ impl FontCollection {
         font_style: FontStyle,
     ) -> Vec<Typeface> {
         let family_names = interop::Strings::from_strs(family_names);
-        let mut typefaces = Typefaces::new();
+
+        let mut typefaces: Vec<Typeface> = Vec::new();
+        let mut set_typefaces = |tfs: &mut [sb::sk_sp<sb::SkTypeface>]| {
+            typefaces = tfs
+                .iter_mut()
+                .filter_map(|sp| {
+                    let ptr = sp.fPtr;
+                    sp.fPtr = ptr::null_mut();
+                    Typeface::from_ptr(ptr)
+                })
+                .collect()
+        };
+
         unsafe {
             sb::C_FontCollection_findTypefaces(
                 self.native_mut(),
                 family_names.native(),
                 font_style.into_native(),
-                typefaces.native_mut(),
+                VecSink::new_mut(&mut set_typefaces).native_mut(),
             )
         };
-        typefaces.into_vec()
+        typefaces
     }
 
     pub fn default_fallback_char(
@@ -169,30 +181,6 @@ impl FontCollection {
 
     pub fn clear_caches(&mut self) {
         unsafe { self.native_mut().clearCaches() }
-    }
-}
-
-type Typefaces = Handle<sb::Typefaces>;
-
-impl NativeDrop for sb::Typefaces {
-    fn drop(&mut self) {
-        unsafe { sb::C_Typefaces_destruct(self) }
-    }
-}
-
-impl Typefaces {
-    pub fn new() -> Self {
-        Typefaces::construct(|tf| unsafe { sb::C_Typefaces_construct(tf) })
-    }
-
-    pub fn into_vec(mut self) -> Vec<Typeface> {
-        let count = unsafe { sb::C_Typefaces_count(self.native()) };
-        (0..count)
-            .map(|i| {
-                Typeface::from_ptr(unsafe { sb::C_Typefaces_release(self.native_mut(), i) })
-                    .unwrap()
-            })
-            .collect()
     }
 }
 

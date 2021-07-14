@@ -6,6 +6,7 @@ use crate::{
 use skia_bindings as sb;
 use std::{
     fmt,
+    mem::transmute,
     ops::{Deref, DerefMut},
     ptr,
 };
@@ -86,7 +87,7 @@ impl Default for TypefaceFontProvider {
 
 impl From<TypefaceFontProvider> for FontMgr {
     fn from(provider: TypefaceFontProvider) -> Self {
-        provider.deref().clone()
+        unsafe { transmute(provider) }
     }
 }
 
@@ -130,10 +131,12 @@ impl TypefaceFontProvider {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{FontCollection, TypefaceFontProvider};
-    use super::TypefaceFontStyleSet;
-    use crate::prelude::{NativeAccess, NativeRefCounted, NativeRefCountedBase};
-    use crate::Typeface;
+    use super::{TypefaceFontProvider, TypefaceFontStyleSet};
+    use crate::{
+        prelude::{NativeAccess, NativeRefCounted, NativeRefCountedBase},
+        textlayout::FontCollection,
+        Typeface,
+    };
 
     #[test]
     #[serial_test::serial]
